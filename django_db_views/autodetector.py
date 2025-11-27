@@ -444,13 +444,13 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                         break
 
                 if view_operation_index is not None:
-                    operations_list.insert(
-                        view_operation_index,
-                        migrations.RunSQL(
-                            sql=drop_sql,
-                            reverse_sql=create_sql,
-                        )
+                    drop_operation = migrations.RunSQL(
+                        sql=drop_sql,
+                        reverse_sql=create_sql,
                     )
+                    # Set _auto_deps to empty list to satisfy Django's autodetector
+                    drop_operation._auto_deps = []
+                    operations_list.insert(view_operation_index, drop_operation)
 
     def generate_indexes(self):
         """
@@ -488,9 +488,10 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                 drop_sql = f"DROP INDEX IF EXISTS {index_name}"
 
                 # Append the CREATE INDEX operation AFTER the view operation
-                self.generated_operations[app_label].append(
-                    migrations.RunSQL(
-                        sql=create_sql,
-                        reverse_sql=drop_sql,
-                    )
+                create_operation = migrations.RunSQL(
+                    sql=create_sql,
+                    reverse_sql=drop_sql,
                 )
+                # Set _auto_deps to empty list to satisfy Django's autodetector
+                create_operation._auto_deps = []
+                self.generated_operations[app_label].append(create_operation)

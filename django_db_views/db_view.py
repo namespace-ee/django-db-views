@@ -110,7 +110,7 @@ class DBMaterializedView(DBView):
                     pg_indexes i
                     JOIN pg_class c ON c.relname = i.tablename
                     JOIN pg_index idx ON idx.indrelid = c.oid
-                    JOIN pg_class ic ON ic.oid = idx.indexrelid
+                    JOIN pg_class ic ON ic.oid = idx.indexrelid AND ic.relname = i.indexname
                     JOIN pg_am am ON am.oid = ic.relam
                 WHERE
                     i.schemaname = 'public'
@@ -128,7 +128,7 @@ class DBMaterializedView(DBView):
                 # Example: CREATE UNIQUE INDEX idx_name ON table_name USING btree (col1, col2)
                 # We need to extract "col1, col2" from this
                 import re
-                match = re.search(r'\((.*?)\)(?:\s+WHERE\s+(.*))?$', index_def)
+                match = re.search(r'USING\s+\w+\s+\(([^)]+)\)(?:\s+WHERE\s+(.*))?$', index_def)
                 if match:
                     columns = match.group(1)
                     where_clause = match.group(2) if match.group(2) else None
