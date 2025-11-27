@@ -314,9 +314,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                             )
                         )
                         if view_operations:
-                            assert len(view_operations) <= 1, (
-                                "SeparateDatabaseAndState can't contain more than one ViewRunPython operation"
-                            )
+                            assert (
+                                len(view_operations) <= 1
+                            ), "SeparateDatabaseAndState can't contain more than one ViewRunPython operation"
                             view_operation = view_operations[0]
                             (
                                 table_name,
@@ -353,9 +353,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
 
     @staticmethod
     def get_cleaned_view_definition_value(view_definition: str) -> str:
-        assert isinstance(view_definition, str), (
-            "View definition must be callable and return string or be itself a string."
-        )
+        assert isinstance(
+            view_definition, str
+        ), "View definition must be callable and return string or be itself a string."
         return view_definition.strip()
 
     def get_current_view_definition_from_database(self, table_name: str) -> str:

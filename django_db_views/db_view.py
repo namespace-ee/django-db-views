@@ -10,9 +10,9 @@ DBViewsRegistry = {}
 class DBViewModelBase(ModelBase):
     def __new__(cls, *args, **kwargs):
         new_class = super().__new__(cls, *args, **kwargs)
-        assert new_class._meta.managed is False, (
-            "For DB View managed must be set to false"
-        )
+        assert (
+            new_class._meta.managed is False
+        ), "For DB View managed must be set to false"
         if not new_class._meta.abstract:
             DBViewsRegistry[new_class._meta.db_table] = new_class
         return new_class
