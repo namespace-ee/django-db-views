@@ -10,9 +10,9 @@ DBViewsRegistry = {}
 class DBViewModelBase(ModelBase):
     def __new__(cls, *args, **kwargs):
         new_class = super().__new__(cls, *args, **kwargs)
-        assert (
-            new_class._meta.managed is False
-        ), "For DB View managed must be set to false"
+        assert new_class._meta.managed is False, (
+            "For DB View managed must be set to false"
+        )
         if not new_class._meta.abstract:
             DBViewsRegistry[new_class._meta.db_table] = new_class
         return new_class
@@ -119,7 +119,7 @@ class DBMaterializedView(DBView):
                 ORDER BY
                     i.indexname
                 """,
-                [cls._meta.db_table]
+                [cls._meta.db_table],
             )
 
             for row in cursor.fetchall():
@@ -128,7 +128,9 @@ class DBMaterializedView(DBView):
                 # Parse the index definition to extract column list
                 # Example: CREATE UNIQUE INDEX idx_name ON table_name USING btree (col1, col2)
                 # We need to extract "col1, col2" from this
-                match = re.search(r'USING\s+\w+\s+\(([^)]+)\)(?:\s+WHERE\s+(.*))?$', index_def)
+                match = re.search(
+                    r"USING\s+\w+\s+\(([^)]+)\)(?:\s+WHERE\s+(.*))?$", index_def
+                )
                 if match:
                     columns = match.group(1)
                     where_clause = match.group(2) if match.group(2) else None
@@ -141,7 +143,7 @@ class DBMaterializedView(DBView):
                     "columns": columns,
                     "unique": is_unique,
                     "method": index_method,
-                    "where_clause": where_clause
+                    "where_clause": where_clause,
                 }
 
         return indexes

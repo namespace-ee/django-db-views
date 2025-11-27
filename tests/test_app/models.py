@@ -182,6 +182,7 @@ class ViewOnSpecificSchemaTemplate:
 
 class MaterializedViewWithMultipleIndexesTemplate:
     """Test model for index detection and migration generation."""
+
     id = models.IntegerField(primary_key=True)
     name = models.TextField()
     value = models.IntegerField()

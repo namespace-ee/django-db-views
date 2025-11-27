@@ -314,9 +314,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                             )
                         )
                         if view_operations:
-                            assert (
-                                len(view_operations) <= 1
-                            ), "SeparateDatabaseAndState can't contain more than one ViewRunPython operation"
+                            assert len(view_operations) <= 1, (
+                                "SeparateDatabaseAndState can't contain more than one ViewRunPython operation"
+                            )
                             view_operation = view_operations[0]
                             (
                                 table_name,
@@ -353,9 +353,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
 
     @staticmethod
     def get_cleaned_view_definition_value(view_definition: str) -> str:
-        assert isinstance(
-            view_definition, str
-        ), "View definition must be callable and return string or be itself a string."
+        assert isinstance(view_definition, str), (
+            "View definition must be callable and return string or be itself a string."
+        )
         return view_definition.strip()
 
     def get_current_view_definition_from_database(self, table_name: str) -> str:
@@ -377,13 +377,25 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
         (app_label, table_name, index_name, index_definition)
         """
         # Get old indexes from migration state
-        for (app_label, table_name), model_state in self.get_previous_view_models_state().items():
+        for (
+            app_label,
+            table_name,
+        ), model_state in self.get_previous_view_models_state().items():
             # Only process materialized views
-            if hasattr(model_state, 'base_class') and issubclass(model_state.base_class, DBMaterializedView):
+            if hasattr(model_state, "base_class") and issubclass(
+                model_state.base_class, DBMaterializedView
+            ):
                 # Get index definitions from state
-                index_definitions = getattr(model_state, 'index_definitions', {})
+                index_definitions = getattr(model_state, "index_definitions", {})
                 for index_name, index_def in index_definitions.items():
-                    self.old_indexes.add((app_label, model_state.table_name, index_name, frozenset(index_def.items())))
+                    self.old_indexes.add(
+                        (
+                            app_label,
+                            model_state.table_name,
+                            index_name,
+                            frozenset(index_def.items()),
+                        )
+                    )
 
         # Get new indexes from current models
         view_models = self.get_current_view_models()
@@ -394,7 +406,14 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                     # Call the model's get_migration_indexes() method
                     index_definitions = view_model.get_migration_indexes()
                     for index_name, index_def in index_definitions.items():
-                        self.new_indexes.add((app_label, view_model._meta.db_table, index_name, frozenset(index_def.items())))
+                        self.new_indexes.add(
+                            (
+                                app_label,
+                                view_model._meta.db_table,
+                                index_name,
+                                frozenset(index_def.items()),
+                            )
+                        )
                 except Exception:
                     # If index detection fails (e.g., view doesn't exist yet), skip it
                     pass
@@ -410,7 +429,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
         recreated_views = set()
         for app_label in self.generated_operations.keys():
             for operation in self.generated_operations.get(app_label, []):
-                if isinstance(operation, ViewRunPython) and isinstance(operation.code, ForwardMaterializedViewMigration):
+                if isinstance(operation, ViewRunPython) and isinstance(
+                    operation.code, ForwardMaterializedViewMigration
+                ):
                     recreated_views.add((app_label, operation.code.table_name))
 
         # For each materialized view being recreated, drop all its indexes
@@ -439,7 +460,10 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                 operations_list = self.generated_operations[app_label]
                 view_operation_index = None
                 for i, op in enumerate(operations_list):
-                    if isinstance(op, ViewRunPython) and op.code.table_name == table_name:
+                    if (
+                        isinstance(op, ViewRunPython)
+                        and op.code.table_name == table_name
+                    ):
                         view_operation_index = i
                         break
 
@@ -463,7 +487,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
         recreated_views = set()
         for app_label in self.generated_operations.keys():
             for operation in self.generated_operations.get(app_label, []):
-                if isinstance(operation, ViewRunPython) and isinstance(operation.code, ForwardMaterializedViewMigration):
+                if isinstance(operation, ViewRunPython) and isinstance(
+                    operation.code, ForwardMaterializedViewMigration
+                ):
                     recreated_views.add((app_label, operation.code.table_name))
 
         # For each materialized view being recreated, create all its indexes

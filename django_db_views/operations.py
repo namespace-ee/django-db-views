@@ -51,6 +51,7 @@ class ViewRunPython(operations.RunPython):
             if isinstance(self.code, ForwardMaterializedViewMigration):
                 # Try to get the model class from the registry
                 from django_db_views.db_view import DBViewsRegistry
+
                 if self.code.table_name in DBViewsRegistry:
                     model_class = DBViewsRegistry[self.code.table_name]
                     try:

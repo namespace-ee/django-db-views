@@ -26,7 +26,7 @@ def get_index_names(table_name: str, using: str = "default") -> list[str]:
             WHERE schemaname = 'public' AND tablename = %s
             ORDER BY indexname
             """,
-            [table_name]
+            [table_name],
         )
         return [row[0] for row in cursor.fetchall()]
 
@@ -40,7 +40,7 @@ def index_exists(index_name: str, using: str = "default") -> bool:
             FROM pg_indexes
             WHERE schemaname = 'public' AND indexname = %s
             """,
-            [index_name]
+            [index_name],
         )
         return cursor.fetchone()[0] > 0
 
@@ -54,7 +54,7 @@ def get_index_definition(index_name: str, using: str = "default") -> str:
             FROM pg_indexes
             WHERE schemaname = 'public' AND indexname = %s
             """,
-            [index_name]
+            [index_name],
         )
         row = cursor.fetchone()
         return row[0] if row else None

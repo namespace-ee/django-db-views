@@ -1,4 +1,5 @@
 """Tests for materialized view index detection and migration generation."""
+
 import pytest
 from django.core.management import call_command
 from django.db import connection
@@ -15,7 +16,9 @@ from tests.fixturies import dynamic_models_cleanup  # noqa
 
 @pytest.mark.django_db(transaction=True)
 @roll_back_schema
-def test_get_migration_indexes_basic(temp_migrations_dir, MaterializedViewWithMultipleIndexes):
+def test_get_migration_indexes_basic(
+    temp_migrations_dir, MaterializedViewWithMultipleIndexes
+):
     """Test that get_migration_indexes() detects indexes correctly."""
     # Create the materialized view first
     call_command("makeviewmigrations", "test_app")
@@ -54,7 +57,9 @@ def test_get_migration_indexes_basic(temp_migrations_dir, MaterializedViewWithMu
 
 @pytest.mark.django_db(transaction=True)
 @roll_back_schema
-def test_indexes_recreated_on_view_change(temp_migrations_dir, MaterializedViewWithMultipleIndexes):
+def test_indexes_recreated_on_view_change(
+    temp_migrations_dir, MaterializedViewWithMultipleIndexes
+):
     """Test that indexes are dropped and recreated when view definition changes."""
     # Create initial view with migration
     call_command("makeviewmigrations", "test_app")
@@ -98,7 +103,9 @@ def test_indexes_recreated_on_view_change(temp_migrations_dir, MaterializedViewW
 
 @pytest.mark.django_db(transaction=True)
 @roll_back_schema
-def test_migration_with_multiple_indexes(temp_migrations_dir, MaterializedViewWithMultipleIndexes):
+def test_migration_with_multiple_indexes(
+    temp_migrations_dir, MaterializedViewWithMultipleIndexes
+):
     """Test migration generation with multiple indexes of different types."""
     # Create view
     call_command("makeviewmigrations", "test_app")
@@ -138,7 +145,9 @@ def test_migration_with_multiple_indexes(temp_migrations_dir, MaterializedViewWi
 
 @pytest.mark.django_db(transaction=True)
 @roll_back_schema
-def test_migration_forward_and_backward(temp_migrations_dir, MaterializedViewWithMultipleIndexes):
+def test_migration_forward_and_backward(
+    temp_migrations_dir, MaterializedViewWithMultipleIndexes
+):
     """Test that migrations can be applied and rolled back correctly with indexes."""
     # Create initial view
     call_command("makeviewmigrations", "test_app")
@@ -177,7 +186,9 @@ def test_migration_forward_and_backward(temp_migrations_dir, MaterializedViewWit
 
 @pytest.mark.django_db(transaction=True)
 @roll_back_schema
-def test_view_without_indexes(temp_migrations_dir, SimpleMaterializedViewWithoutDependencies):
+def test_view_without_indexes(
+    temp_migrations_dir, SimpleMaterializedViewWithoutDependencies
+):
     """Test that views without indexes don't generate index operations."""
     # Create view without any indexes
     call_command("makeviewmigrations", "test_app")
@@ -185,7 +196,9 @@ def test_view_without_indexes(temp_migrations_dir, SimpleMaterializedViewWithout
 
     # Verify no index operations in migration
     assert "DROP INDEX" not in migration_content
-    assert "CREATE INDEX" not in migration_content or "CREATE INDEX" in migration_content  # May have system indexes
+    assert (
+        "CREATE INDEX" not in migration_content or "CREATE INDEX" in migration_content
+    )  # May have system indexes
 
     call_command("migrate", "test_app")
 
@@ -199,7 +212,9 @@ def test_view_without_indexes(temp_migrations_dir, SimpleMaterializedViewWithout
 
 @pytest.mark.django_db(transaction=True)
 @roll_back_schema
-def test_index_definition_format(temp_migrations_dir, MaterializedViewWithMultipleIndexes):
+def test_index_definition_format(
+    temp_migrations_dir, MaterializedViewWithMultipleIndexes
+):
     """Test that index definitions are correctly formatted in migrations."""
     # Create view and index
     call_command("makeviewmigrations", "test_app")
@@ -224,7 +239,9 @@ def test_index_definition_format(temp_migrations_dir, MaterializedViewWithMultip
 
 @pytest.mark.django_db(transaction=True)
 @roll_back_schema
-def test_no_duplicate_index_operations(temp_migrations_dir, MaterializedViewWithMultipleIndexes):
+def test_no_duplicate_index_operations(
+    temp_migrations_dir, MaterializedViewWithMultipleIndexes
+):
     """Test that running makeviewmigrations multiple times doesn't create duplicate operations."""
     # Create view and index
     call_command("makeviewmigrations", "test_app")
