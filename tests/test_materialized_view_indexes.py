@@ -85,10 +85,17 @@ def test_indexes_recreated_on_view_change(
 
     # Generate new migration
     call_command("makeviewmigrations", "test_app")
-    migration_file = temp_migrations_dir / "0002_auto.py"
+
+    # Find the second migration file (0002_*.py)
+    migration_files = [
+        f for f in temp_migrations_dir.listdir()
+        if f.basename.startswith("0002_") and f.basename.endswith(".py")
+    ]
+    assert len(migration_files) == 1, f"Expected 1 migration file, found {len(migration_files)}"
+    migration_file = migration_files[0]
 
     # Read migration content
-    migration_content = migration_file.read_text() if migration_file.exists() else ""
+    migration_content = migration_file.read()
 
     # Verify migration contains index operations
     assert "DROP INDEX IF EXISTS test_name_idx" in migration_content
@@ -192,7 +199,7 @@ def test_view_without_indexes(
     """Test that views without indexes don't generate index operations."""
     # Create view without any indexes
     call_command("makeviewmigrations", "test_app")
-    migration_content = (temp_migrations_dir / "0001_initial.py").read_text()
+    migration_content = (temp_migrations_dir / "0001_initial.py").read()
 
     # Verify no index operations in migration
     assert "DROP INDEX" not in migration_content
@@ -256,6 +263,6 @@ def test_no_duplicate_index_operations(
     call_command("makeviewmigrations", "test_app")
 
     # Should not create a new migration
-    migrations = list(temp_migrations_dir.glob("*.py"))
-    py_migrations = [m for m in migrations if m.name != "__init__.py"]
+    migrations = [f for f in temp_migrations_dir.listdir() if f.basename.endswith(".py")]
+    py_migrations = [m for m in migrations if m.basename != "__init__.py"]
     assert len(py_migrations) == 1  # Only initial migration
