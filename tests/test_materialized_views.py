@@ -1,5 +1,6 @@
 import pytest
 from django.core.management import call_command
+from django.db import connection
 
 from tests.asserts_utils import is_view_exists
 from tests.decorators import roll_back_schema
@@ -57,6 +58,12 @@ def test_materialized_db_view_based_on_raw_sql_with_indexes(
         SimpleMaterializedViewWithIndex.objects.get().current_date_time
     )
     assert current_date_time_from_view_call_1 != current_date_time_from_view_call_3
+    # Create a unique index required for concurrent refresh
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS unique_idx_current_date_time "
+            f"ON {SimpleMaterializedViewWithIndex._meta.db_table} (current_date_time)"
+        )
     # regular refresh concurrently
     SimpleMaterializedViewWithIndex.refresh(concurrently=True)
     current_date_time_from_view_call_4 = (
