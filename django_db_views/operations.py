@@ -22,6 +22,7 @@ class DBViewModelState(ModelState):
         view_definition: str = None,
         table_name: str = None,
         base_class=None,
+        index_definitions: dict = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -30,6 +31,7 @@ class DBViewModelState(ModelState):
             self.view_definition = view_definition
             self.base_class = base_class
             self.table_name = table_name
+            self.index_definitions = index_definitions or {}
 
 
 class ViewRunPython(operations.RunPython):
@@ -43,6 +45,20 @@ class ViewRunPython(operations.RunPython):
                 model = DBView
             else:
                 raise NotImplementedError
+
+            # Get index definitions for materialized views
+            index_definitions = {}
+            if isinstance(self.code, ForwardMaterializedViewMigration):
+                # Try to get the model class from the registry
+                from django_db_views.db_view import DBViewsRegistry
+                if self.code.table_name in DBViewsRegistry:
+                    model_class = DBViewsRegistry[self.code.table_name]
+                    try:
+                        index_definitions = model_class.get_migration_indexes()
+                    except Exception:
+                        # If index detection fails, use empty dict
+                        index_definitions = {}
+
             state.add_model(
                 DBViewModelState(
                     app_label,
@@ -60,6 +76,7 @@ class ViewRunPython(operations.RunPython):
                     view_definition=self.code.view_definition,
                     base_class=model,
                     table_name=self.code.table_name,
+                    index_definitions=index_definitions,
                 )
             )
 
