@@ -2,6 +2,11 @@
 Changelogs starts from version 0.1.3
 
 ## Unreleased
+- Add automatic index management for materialized views
+- Indexes on materialized views are now detected and included in migrations
+- Support for unique, partial (with WHERE clause), and multi-column indexes
+- Add `get_migration_indexes()` method to `DBMaterializedView` for customization
+- Add test helper utilities for index verification
 
 ## Released
 

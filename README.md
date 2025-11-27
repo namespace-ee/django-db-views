@@ -13,8 +13,8 @@
 ### What we offer
  - Database views
  - Materialized views
- - views schema migrations 
- - indexing for materialized views (future)
+ - views schema migrations
+ - indexing for materialized views
  - database table function (future)
 
 ### How to use?
@@ -139,8 +139,73 @@ view_definition = {
 
 Just inherit from `DBMaterializedView` instead of regular `DBView`
 
-Materialzied View provide an extra class method to refresh view called `refresh`
+Materialized View provide an extra class method to refresh view called `refresh`
 
+### Materialized View Indexes
+
+Indexes on materialized views are automatically detected and managed in migrations.
+
+When you create indexes on a materialized view and run `makeviewmigrations`, the indexes will be automatically detected and included in the migration. When the view definition changes and needs to be recreated, the indexes are automatically dropped before the view recreation and recreated afterwards.
+
+Example workflow:
+```python
+# 1. Create your materialized view
+class MyMaterializedView(DBMaterializedView):
+    value = models.IntegerField()
+    name = models.TextField()
+
+    view_definition = """
+        SELECT id, value, name FROM my_table
+    """
+
+    class Meta:
+        managed = False
+        db_table = 'my_materialized_view'
+
+# 2. Run migrations to create the view
+# python manage.py makeviewmigrations
+# python manage.py migrate
+
+# 3. Create indexes on the materialized view
+# CREATE INDEX my_view_name_idx ON my_materialized_view (name);
+# CREATE UNIQUE INDEX my_view_value_idx ON my_materialized_view (value) WHERE value > 0;
+
+# 4. Run makeviewmigrations again - indexes are automatically detected
+# python manage.py makeviewmigrations
+
+# 5. The migration will include the index definitions
+# When you later change view_definition, indexes will be automatically recreated
+```
+
+Supported index types:
+- Regular indexes: `CREATE INDEX name ON table (column)`
+- Unique indexes: `CREATE UNIQUE INDEX name ON table (column)`
+- Multi-column indexes: `CREATE INDEX name ON table (col1, col2)`
+- Partial indexes: `CREATE INDEX name ON table (column) WHERE condition`
+- Different index methods: btree (default), hash, gin, gist, brin
+
+Customizing index detection:
+
+You can override `get_migration_indexes()` to customize which indexes are managed:
+
+```python
+class MyMaterializedView(DBMaterializedView):
+    @classmethod
+    def get_migration_indexes(cls, using=None):
+        indexes = super().get_migration_indexes(using)
+        # Remove an index that shouldn't be managed
+        indexes.pop("system_generated_idx", None)
+        # Or add a custom index definition
+        indexes["custom_idx"] = {
+            "columns": "custom_column",
+            "unique": True,
+            "method": "btree",
+            "where_clause": None
+        }
+        return indexes
+```
+
+**Note:** Index management is currently only supported for PostgreSQL databases and assumes the 'public' schema. Support for other databases and custom schemas may be added in future versions.
 
 ### Notes
 _Please use the newest version. version 0.1.0 has backward

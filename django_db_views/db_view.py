@@ -1,3 +1,4 @@
+import re
 from typing import Union, Callable
 
 from django.db import models, connections, DEFAULT_DB_ALIAS
@@ -127,7 +128,6 @@ class DBMaterializedView(DBView):
                 # Parse the index definition to extract column list
                 # Example: CREATE UNIQUE INDEX idx_name ON table_name USING btree (col1, col2)
                 # We need to extract "col1, col2" from this
-                import re
                 match = re.search(r'USING\s+\w+\s+\(([^)]+)\)(?:\s+WHERE\s+(.*))?$', index_def)
                 if match:
                     columns = match.group(1)
