@@ -178,3 +178,43 @@ class ViewOnSpecificSchemaTemplate:
     class Meta:
         managed = False
         db_table = 'extra_schema"."view_on_specific_schema'
+
+
+class MaterializedViewWithMultipleIndexesTemplate:
+    """Test model for index detection and migration generation."""
+
+    id = models.IntegerField(primary_key=True)
+    name = models.TextField()
+    value = models.IntegerField()
+    active = models.BooleanField()
+
+    view_definition = """
+        SELECT
+            1 as id,
+            'test' as name,
+            100 as value,
+            true as active
+    """
+
+    class Meta:
+        managed = False
+        db_table = "test_materialized_view_with_indexes"
+
+
+class ReplaceViewTestTemplate:
+    """Test model for CREATE OR REPLACE VIEW functionality."""
+
+    id = models.IntegerField(primary_key=True)
+    name = models.TextField()
+    value = models.IntegerField()
+
+    view_definition = """
+        SELECT
+            1 as id,
+            'original' as name,
+            100 as value
+    """
+
+    class Meta:
+        managed = False
+        db_table = "test_replace_view"

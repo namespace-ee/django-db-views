@@ -24,8 +24,6 @@ from django_db_views.migration_functions import (
     BackwardViewMigration,
     ForwardMaterializedViewMigration,
     BackwardMaterializedViewMigration,
-    ForwardViewMigrationBase,
-    BackwardViewMigrationBase,
     DropView,
     DropMaterializedView,
     DropViewMigration,
@@ -157,6 +155,7 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                             model_state.view_definition,
                             model_state.table_name,
                             engine=model_state.view_engine,
+                            use_replace=True,  # Default for old views, runtime will decide based on engine
                         ),
                         atomic=False,
                     ),
@@ -222,6 +221,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                                 dependency = (base_app_label, base_name, None, True)
                             dependencies.append(dependency)
                     dependencies += getattr(view_model, "dependencies", [])
+                    # Get user's preference for CREATE OR REPLACE
+                    use_replace = getattr(view_model, "use_replace_migration", True)
+
                     self.add_operation(
                         app_label,
                         ViewRunPython(
@@ -229,11 +231,13 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                                 latest_view_definition.strip(";"),
                                 view_model._meta.db_table,
                                 engine=engine,
+                                use_replace=use_replace,
                             ),
                             self.get_backward_migration_class(view_model)(
                                 current_view_definition.strip(";"),
                                 view_model._meta.db_table,
                                 engine=engine,
+                                use_replace=use_replace,
                             ),
                             atomic=False,
                         ),
@@ -241,19 +245,19 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                     )
 
     @staticmethod
-    def get_forward_migration_class(model) -> Type[ForwardViewMigrationBase]:
+    def get_forward_migration_class(model) -> Type:
         if issubclass(model, DBMaterializedView):
             return ForwardMaterializedViewMigration
-        if issubclass(model, DBView):
+        elif issubclass(model, DBView):
             return ForwardViewMigration
         else:
             raise NotImplementedError
 
     @staticmethod
-    def get_backward_migration_class(model) -> Type[BackwardViewMigrationBase]:
+    def get_backward_migration_class(model) -> Type:
         if issubclass(model, DBMaterializedView):
             return BackwardMaterializedViewMigration
-        if issubclass(model, DBView):
+        elif issubclass(model, DBView):
             return BackwardViewMigration
         else:
             raise NotImplementedError
@@ -370,10 +374,154 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                 return current_view_definition
 
     def detect_index_changes(self):
-        pass
+        """
+        Detect index changes for materialized views.
+
+        Populates self.old_indexes and self.new_indexes with tuples of
+        (app_label, table_name, index_name, index_definition)
+        """
+        # Get old indexes from migration state
+        for (
+            app_label,
+            table_name,
+        ), model_state in self.get_previous_view_models_state().items():
+            # Only process materialized views
+            if hasattr(model_state, "base_class") and issubclass(
+                model_state.base_class, DBMaterializedView
+            ):
+                # Get index definitions from state
+                index_definitions = getattr(model_state, "index_definitions", {})
+                for index_name, index_def in index_definitions.items():
+                    self.old_indexes.add(
+                        (
+                            app_label,
+                            model_state.table_name,
+                            index_name,
+                            frozenset(index_def.items()),
+                        )
+                    )
+
+        # Get new indexes from current models
+        view_models = self.get_current_view_models()
+        for (app_label, model_name), view_model in view_models.items():
+            # Only process materialized views
+            if issubclass(view_model, DBMaterializedView):
+                try:
+                    # Call the model's get_migration_indexes() method
+                    index_definitions = view_model.get_migration_indexes()
+                    for index_name, index_def in index_definitions.items():
+                        self.new_indexes.add(
+                            (
+                                app_label,
+                                view_model._meta.db_table,
+                                index_name,
+                                frozenset(index_def.items()),
+                            )
+                        )
+                except Exception:
+                    # If index detection fails (e.g., view doesn't exist yet), skip it
+                    pass
 
     def drop_indexes(self):
-        pass
+        """
+        Generate DROP INDEX operations for indexes that exist in old state but not in new state,
+        or for all indexes when a materialized view is being recreated.
+        """
+        from django.db import migrations
+
+        # Track which materialized views are being recreated
+        recreated_views = set()
+        for app_label in self.generated_operations.keys():
+            for operation in self.generated_operations.get(app_label, []):
+                if isinstance(operation, ViewRunPython) and isinstance(
+                    operation.code, ForwardMaterializedViewMigration
+                ):
+                    recreated_views.add((app_label, operation.code.table_name))
+
+        # For each materialized view being recreated, drop all its indexes
+        for app_label, table_name in recreated_views:
+            # Find all old indexes for this view
+            view_old_indexes = [
+                (idx_name, dict(idx_def))
+                for al, tn, idx_name, idx_def in self.old_indexes
+                if al == app_label and tn == table_name
+            ]
+
+            # Add DROP INDEX operations before the view migration
+            for index_name, index_def in view_old_indexes:
+                # Build CREATE INDEX statement for reverse operation
+                unique_keyword = "UNIQUE " if index_def.get("unique", False) else ""
+                method = index_def.get("method", "btree")
+                columns = index_def.get("columns", "")
+                where_clause = index_def.get("where_clause")
+                where_sql = f" WHERE {where_clause}" if where_clause else ""
+
+                create_sql = f"CREATE {unique_keyword}INDEX {index_name} ON {table_name} USING {method} ({columns}){where_sql}"
+                drop_sql = f"DROP INDEX IF EXISTS {index_name}"
+
+                # Insert the DROP INDEX operation BEFORE the view operation
+                # We need to find the ViewRunPython operation and insert before it
+                operations_list = self.generated_operations[app_label]
+                view_operation_index = None
+                for i, op in enumerate(operations_list):
+                    if (
+                        isinstance(op, ViewRunPython)
+                        and op.code.table_name == table_name
+                    ):
+                        view_operation_index = i
+                        break
+
+                if view_operation_index is not None:
+                    drop_operation = migrations.RunSQL(
+                        sql=drop_sql,
+                        reverse_sql=create_sql,
+                    )
+                    # Set _auto_deps to empty list to satisfy Django's autodetector
+                    drop_operation._auto_deps = []
+                    operations_list.insert(view_operation_index, drop_operation)
 
     def generate_indexes(self):
-        pass
+        """
+        Generate CREATE INDEX operations for indexes that exist in new state but not in old state,
+        or for all indexes when a materialized view is being recreated.
+        """
+        from django.db import migrations
+
+        # Track which materialized views are being recreated
+        recreated_views = set()
+        for app_label in self.generated_operations.keys():
+            for operation in self.generated_operations.get(app_label, []):
+                if isinstance(operation, ViewRunPython) and isinstance(
+                    operation.code, ForwardMaterializedViewMigration
+                ):
+                    recreated_views.add((app_label, operation.code.table_name))
+
+        # For each materialized view being recreated, create all its indexes
+        for app_label, table_name in recreated_views:
+            # Find all new indexes for this view
+            view_new_indexes = [
+                (idx_name, dict(idx_def))
+                for al, tn, idx_name, idx_def in self.new_indexes
+                if al == app_label and tn == table_name
+            ]
+
+            # Add CREATE INDEX operations after the view migration
+            for index_name, index_def in view_new_indexes:
+                # Build CREATE INDEX statement
+                unique_keyword = "UNIQUE " if index_def.get("unique", False) else ""
+                method = index_def.get("method", "btree")
+                columns = index_def.get("columns", "")
+                where_clause = index_def.get("where_clause")
+                where_sql = f" WHERE {where_clause}" if where_clause else ""
+
+                create_sql = f"CREATE {unique_keyword}INDEX {index_name} ON {table_name} USING {method} ({columns}){where_sql}"
+                drop_sql = f"DROP INDEX IF EXISTS {index_name}"
+
+                # Append the CREATE INDEX operation AFTER the view operation
+                create_operation = migrations.RunSQL(
+                    sql=create_sql,
+                    reverse_sql=drop_sql,
+                )
+                # Set _auto_deps to empty list to satisfy Django's autodetector
+                create_operation._auto_deps = []
+                self.generated_operations[app_label].append(create_operation)

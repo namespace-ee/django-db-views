@@ -6,7 +6,6 @@ import django_db_views.operations
 
 
 class Migration(migrations.Migration):
-
     dependencies = []
 
     operations = [
@@ -14,19 +13,25 @@ class Migration(migrations.Migration):
         django_db_views.operations.ViewRunPython(
             code=django_db_views.migration_functions.ForwardViewMigration(
                 "Select\n                  *\n              FROM (values (1, 'dummy_1') ,(2, 'dummy_2')) A(id, name)",
-                'view_for_backward_compatibility_check'),
-            reverse_code=django_db_views.migration_functions.BackwardViewMigration('',
-                                                                                   'view_for_backward_compatibility_check'),
+                "view_for_backward_compatibility_check",
+            ),
+            reverse_code=django_db_views.migration_functions.BackwardViewMigration(
+                "", "view_for_backward_compatibility_check"
+            ),
             atomic=False,
         ),
         # Versions from 0.0.10 and higher define engine parameter.
         django_db_views.operations.ViewRunPython(
             code=django_db_views.migration_functions.ForwardViewMigration(
                 "Select\n                  *\n              FROM (values (1, 'dummy_1') ,(2, 'dummy_2')) A(id, name)",
-                'view_for_backward_compatibility_check', engine='django.db.backends.sqlite3'),
-            reverse_code=django_db_views.migration_functions.BackwardViewMigration('',
-                                                                                   'view_for_backward_compatibility_check',
-                                                                                   engine='django.db.backends.sqlite3'),
+                "view_for_backward_compatibility_check",
+                engine="django.db.backends.sqlite3",
+            ),
+            reverse_code=django_db_views.migration_functions.BackwardViewMigration(
+                "",
+                "view_for_backward_compatibility_check",
+                engine="django.db.backends.sqlite3",
+            ),
             atomic=False,
         ),
     ]
