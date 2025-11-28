@@ -135,6 +135,62 @@ view_definition = {
 }
 ```
 
+### CREATE OR REPLACE VIEW Support
+
+By default, regular views use `CREATE OR REPLACE VIEW` for migrations (when supported by the database). This provides several benefits:
+
+- **Atomic operation**: No moment where the view doesn't exist
+- **Preserves dependencies**: Dependent views, functions, and triggers continue to work
+- **Maintains permissions**: View ownership and permissions are preserved
+- **Safer for production**: No risk of breaking dependent objects
+
+#### Database Support
+
+- **PostgreSQL & MySQL**: Use `CREATE OR REPLACE VIEW` by default
+- **SQLite**: Automatically uses `DROP VIEW` + `CREATE VIEW` (SQLite doesn't support CREATE OR REPLACE)
+
+The system automatically detects your database engine and uses the appropriate approach.
+
+#### Controlling the Behavior
+
+You can control whether a view uses CREATE OR REPLACE with the `use_replace_migration` attribute:
+
+```python
+from django_db_views.db_view import DBView
+
+class MyView(DBView):
+    use_replace_migration = False  # Force DROP+CREATE instead of CREATE OR REPLACE
+
+    view_definition = """
+        SELECT id, name FROM my_table
+    """
+
+    class Meta:
+        managed = False
+        db_table = 'my_view'
+```
+
+Setting `use_replace_migration = False` forces the traditional `DROP VIEW` + `CREATE VIEW` approach, even on databases that support CREATE OR REPLACE.
+
+#### Multi-Database Views
+
+For views with different definitions per database engine, the decision is made at runtime based on the actual database being used:
+
+```python
+class MyView(DBView):
+    view_definition = {
+        "django.db.backends.postgresql": "SELECT ...",  # Uses CREATE OR REPLACE
+        "django.db.backends.sqlite3": "SELECT ...",     # Uses DROP+CREATE
+        "django.db.backends.mysql": "SELECT ...",       # Uses CREATE OR REPLACE
+    }
+
+    class Meta:
+        managed = False
+        db_table = 'my_view'
+```
+
+**Note**: Materialized views always use `DROP MATERIALIZED VIEW` + `CREATE MATERIALIZED VIEW` because PostgreSQL does not support CREATE OR REPLACE for materialized views.
+
 ### Materialized Views
 
 Just inherit from `DBMaterializedView` instead of regular `DBView`

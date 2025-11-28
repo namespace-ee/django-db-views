@@ -2,13 +2,20 @@
 Changelogs starts from version 0.1.3
 
 ## Unreleased
-- Add automatic index management for materialized views
-- Indexes on materialized views are now detected and included in migrations
-- Support for unique, partial (with WHERE clause), and multi-column indexes
-- Add `get_migration_indexes()` method to `DBMaterializedView` for customization
-- Add test helper utilities for index verification
 
 ## Released
+
+### [0.1.15]
+- Add CREATE OR REPLACE VIEW support for regular views (PostgreSQL, MySQL)
+  - Atomic view updates that preserve dependencies, permissions, and ownership
+  - Auto-detection based on database engine (PostgreSQL/MySQL use CREATE OR REPLACE, SQLite uses DROP+CREATE)
+  - Add `use_replace_migration` attribute to control behavior per view model
+  - Runtime decision making for multi-database views with different engines
+- Add automatic index management for materialized views
+  - Indexes on materialized views are now detected and included in migrations
+  - Support for unique, partial (with WHERE clause), and multi-column indexes
+  - Add `get_migration_indexes()` method to `DBMaterializedView` for customization
+  - Automatic index recreation when view definition changes
 
 ### [0.1.14]
 - Add ability to set custom dependencies, to cover what is required by query definition
