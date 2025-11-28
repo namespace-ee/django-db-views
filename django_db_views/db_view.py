@@ -3,8 +3,17 @@ from typing import Union, Callable
 
 from django.db import models, connections, DEFAULT_DB_ALIAS
 from django.db.models.base import ModelBase
+from django.conf import settings
 
 DBViewsRegistry = {}
+
+
+def supports_create_or_replace_view() -> bool:
+    """Check if the default database engine supports CREATE OR REPLACE VIEW syntax."""
+    engine = settings.DATABASES["default"]["ENGINE"]
+    # PostgreSQL and MySQL support CREATE OR REPLACE VIEW
+    # SQLite does not support it (uses DROP+CREATE instead)
+    return "postgresql" in engine or "mysql" in engine
 
 
 class DBViewModelBase(ModelBase):
@@ -25,13 +34,14 @@ class DBView(models.Model, metaclass=DBViewModelBase):
         view definition can be per db engine.
 
     Optional attributes:
-        use_replace_migration - Use CREATE OR REPLACE VIEW when view exists (default: True)
+        use_replace_migration - Use CREATE OR REPLACE VIEW (default: auto-detected based on database)
         dependencies - List of dependencies for this view
     """
 
     view_definition: Union[Callable, str, dict]
     dependencies: list
-    use_replace_migration: bool = True  # Use CREATE OR REPLACE when view exists
+    # Auto-detect based on database engine, but allow user override
+    use_replace_migration: bool = supports_create_or_replace_view()
 
     class Meta:
         managed = False

@@ -24,13 +24,9 @@ from django_db_views.migration_functions import (
     BackwardViewMigration,
     ForwardMaterializedViewMigration,
     BackwardMaterializedViewMigration,
-    ForwardViewMigrationBase,
-    BackwardViewMigrationBase,
     DropView,
     DropMaterializedView,
     DropViewMigration,
-    ForwardReplaceViewMigration,
-    BackwardReplaceViewMigration,
 )
 
 
@@ -159,6 +155,7 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                             model_state.view_definition,
                             model_state.table_name,
                             engine=model_state.view_engine,
+                            use_replace=True,  # Default for old views, runtime will decide based on engine
                         ),
                         atomic=False,
                     ),
@@ -224,6 +221,9 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                                 dependency = (base_app_label, base_name, None, True)
                             dependencies.append(dependency)
                     dependencies += getattr(view_model, "dependencies", [])
+                    # Get user's preference for CREATE OR REPLACE
+                    use_replace = getattr(view_model, "use_replace_migration", True)
+
                     self.add_operation(
                         app_label,
                         ViewRunPython(
@@ -231,11 +231,13 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                                 latest_view_definition.strip(";"),
                                 view_model._meta.db_table,
                                 engine=engine,
+                                use_replace=use_replace,
                             ),
                             self.get_backward_migration_class(view_model)(
                                 current_view_definition.strip(";"),
                                 view_model._meta.db_table,
                                 engine=engine,
+                                use_replace=use_replace,
                             ),
                             atomic=False,
                         ),
@@ -243,29 +245,19 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
                     )
 
     @staticmethod
-    def get_forward_migration_class(model) -> Type[ForwardViewMigrationBase]:
-        # Materialized views use different SQL commands (CREATE MATERIALIZED VIEW)
+    def get_forward_migration_class(model) -> Type:
         if issubclass(model, DBMaterializedView):
             return ForwardMaterializedViewMigration
-
-        # Regular views: use CREATE OR REPLACE when supported, otherwise DROP+CREATE
-        if issubclass(model, DBView):
-            if getattr(model, "use_replace_migration", True):
-                return ForwardReplaceViewMigration
+        elif issubclass(model, DBView):
             return ForwardViewMigration
         else:
             raise NotImplementedError
 
     @staticmethod
-    def get_backward_migration_class(model) -> Type[BackwardViewMigrationBase]:
-        # Materialized views use different SQL commands (CREATE MATERIALIZED VIEW)
+    def get_backward_migration_class(model) -> Type:
         if issubclass(model, DBMaterializedView):
             return BackwardMaterializedViewMigration
-
-        # Regular views: use CREATE OR REPLACE when supported, otherwise DROP+CREATE
-        if issubclass(model, DBView):
-            if getattr(model, "use_replace_migration", True):
-                return BackwardReplaceViewMigration
+        elif issubclass(model, DBView):
             return BackwardViewMigration
         else:
             raise NotImplementedError

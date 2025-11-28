@@ -45,9 +45,9 @@ def test_view_with_use_replace_false_uses_drop_create(
     # Read migration content
     migration_content = migration_file.read()
 
-    # Verify it uses ForwardViewMigration (DROP+CREATE), not ForwardReplaceViewMigration
+    # Verify it uses ForwardViewMigration with use_replace=False
     assert "ForwardViewMigration" in migration_content
-    assert "ForwardReplaceViewMigration" not in migration_content
+    assert "use_replace=False" in migration_content
 
     # Apply migration
     call_command("migrate", "test_app")
@@ -161,12 +161,10 @@ def test_materialized_view_never_uses_replace(
     # Read migration content
     migration_content = migration_file.read()
 
-    # Verify it uses ForwardMaterializedViewMigration (DROP+CREATE), NOT any Replace classes
+    # Verify it uses ForwardMaterializedViewMigration (always DROP+CREATE)
+    # Materialized views inherit from ForwardViewMigrationBase with REPLACE_COMMAND_TEMPLATE=None
     assert "ForwardMaterializedViewMigration" in migration_content
     assert "BackwardMaterializedViewMigration" in migration_content
-    # Materialized views should NEVER use Replace migration classes
-    assert "ForwardReplaceViewMigration" not in migration_content
-    assert "BackwardReplaceViewMigration" not in migration_content
 
     # Apply migration
     call_command("migrate", "test_app")
