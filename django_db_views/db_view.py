@@ -23,10 +23,15 @@ class DBView(models.Model, metaclass=DBViewModelBase):
     Children should define:
         view_definition - define the view, can be callable or attribute (string)
         view definition can be per db engine.
+
+    Optional attributes:
+        use_replace_migration - Use CREATE OR REPLACE VIEW when view exists (default: True)
+        dependencies - List of dependencies for this view
     """
 
     view_definition: Union[Callable, str, dict]
     dependencies: list
+    use_replace_migration: bool = True  # Use CREATE OR REPLACE when view exists
 
     class Meta:
         managed = False
@@ -34,6 +39,8 @@ class DBView(models.Model, metaclass=DBViewModelBase):
 
 
 class DBMaterializedView(DBView):
+    use_replace_migration: bool = False  # Materialized views don't support REPLACE
+
     class Meta:
         managed = False
         abstract = True

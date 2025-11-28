@@ -6,6 +6,7 @@ from django_db_views.db_view import DBView, DBMaterializedView
 from django_db_views.migration_functions import (
     ForwardMaterializedViewMigration,
     ForwardViewMigration,
+    ForwardReplaceViewMigration,
 )
 
 
@@ -41,7 +42,9 @@ class ViewRunPython(operations.RunPython):
         if VIEW_MIGRATION_CONTEXT["is_view_migration"]:
             if isinstance(self.code, ForwardMaterializedViewMigration):
                 model = DBMaterializedView
-            elif isinstance(self.code, ForwardViewMigration):
+            elif isinstance(
+                self.code, (ForwardViewMigration, ForwardReplaceViewMigration)
+            ):
                 model = DBView
             else:
                 raise NotImplementedError

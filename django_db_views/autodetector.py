@@ -29,6 +29,8 @@ from django_db_views.migration_functions import (
     DropView,
     DropMaterializedView,
     DropViewMigration,
+    ForwardReplaceViewMigration,
+    BackwardReplaceViewMigration,
 )
 
 
@@ -242,18 +244,28 @@ class ViewMigrationAutoDetector(MigrationAutodetector):
 
     @staticmethod
     def get_forward_migration_class(model) -> Type[ForwardViewMigrationBase]:
+        # Materialized views use different SQL commands (CREATE MATERIALIZED VIEW)
         if issubclass(model, DBMaterializedView):
             return ForwardMaterializedViewMigration
+
+        # Regular views: use CREATE OR REPLACE when supported, otherwise DROP+CREATE
         if issubclass(model, DBView):
+            if getattr(model, "use_replace_migration", True):
+                return ForwardReplaceViewMigration
             return ForwardViewMigration
         else:
             raise NotImplementedError
 
     @staticmethod
     def get_backward_migration_class(model) -> Type[BackwardViewMigrationBase]:
+        # Materialized views use different SQL commands (CREATE MATERIALIZED VIEW)
         if issubclass(model, DBMaterializedView):
             return BackwardMaterializedViewMigration
+
+        # Regular views: use CREATE OR REPLACE when supported, otherwise DROP+CREATE
         if issubclass(model, DBView):
+            if getattr(model, "use_replace_migration", True):
+                return BackwardReplaceViewMigration
             return BackwardViewMigration
         else:
             raise NotImplementedError

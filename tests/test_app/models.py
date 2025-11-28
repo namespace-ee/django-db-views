@@ -199,3 +199,22 @@ class MaterializedViewWithMultipleIndexesTemplate:
     class Meta:
         managed = False
         db_table = "test_materialized_view_with_indexes"
+
+
+class ReplaceViewTestTemplate:
+    """Test model for CREATE OR REPLACE VIEW functionality."""
+
+    id = models.IntegerField(primary_key=True)
+    name = models.TextField()
+    value = models.IntegerField()
+
+    view_definition = """
+        SELECT
+            1 as id,
+            'original' as name,
+            100 as value
+    """
+
+    class Meta:
+        managed = False
+        db_table = "test_replace_view"

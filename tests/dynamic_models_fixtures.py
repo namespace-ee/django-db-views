@@ -14,6 +14,7 @@ from tests.test_app.models import (
     SecondSimpleViewWithoutDependenciesTemplate,
     ViewOnSpecificSchemaTemplate,
     MaterializedViewWithMultipleIndexesTemplate,
+    ReplaceViewTestTemplate,
 )
 
 
@@ -109,3 +110,10 @@ def MaterializedViewWithMultipleIndexes():
     from django_db_views.db_view import DBMaterializedView
 
     return define_model(MaterializedViewWithMultipleIndexesTemplate, DBMaterializedView)
+
+
+@pytest.fixture
+def ReplaceViewTest():
+    from django_db_views.db_view import DBView
+
+    return define_model(ReplaceViewTestTemplate, DBView)

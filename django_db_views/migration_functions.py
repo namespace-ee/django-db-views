@@ -70,6 +70,65 @@ class BackwardViewMigration(BackwardViewMigrationBase):
 
 
 @deconstructible
+class ForwardReplaceViewMigration(ViewMigration):
+    """
+    Forward migration using CREATE OR REPLACE VIEW.
+
+    Benefits over DROP+CREATE:
+    - Atomic operation (no moment where view doesn't exist)
+    - Preserves view dependencies (dependent views, functions, triggers)
+    - Maintains permissions and ownership
+    - Safer for production environments
+
+    Use this when updating an existing view's definition.
+    """
+
+    REPLACE_COMMAND_TEMPLATE = "CREATE OR REPLACE VIEW %s AS %s;"
+
+    def __call__(self, apps: StateApps, schema_editor: DatabaseSchemaEditor):
+        if self.view_definition:
+            if (
+                self.view_engine is None
+                or self.view_engine == schema_editor.connection.settings_dict["ENGINE"]
+            ):
+                schema_editor.execute(
+                    self.REPLACE_COMMAND_TEMPLATE
+                    % (schema_editor.quote_name(self.table_name), self.view_definition)
+                )
+
+
+@deconstructible
+class BackwardReplaceViewMigration(ViewMigration):
+    """
+    Backward migration using CREATE OR REPLACE VIEW.
+
+    If view_definition is empty, drops the view instead.
+    Otherwise, replaces it with the previous definition.
+    """
+
+    REPLACE_COMMAND_TEMPLATE = "CREATE OR REPLACE VIEW %s AS %s;"
+    DROP_COMMAND_TEMPLATE = "DROP VIEW IF EXISTS %s;"
+
+    def __call__(self, apps: StateApps, schema_editor: DatabaseSchemaEditor):
+        if (
+            self.view_engine is None
+            or self.view_engine == schema_editor.connection.settings_dict["ENGINE"]
+        ):
+            if self.view_definition:
+                # Replace with previous definition
+                schema_editor.execute(
+                    self.REPLACE_COMMAND_TEMPLATE
+                    % (schema_editor.quote_name(self.table_name), self.view_definition)
+                )
+            else:
+                # No previous definition, drop the view
+                schema_editor.execute(
+                    self.DROP_COMMAND_TEMPLATE
+                    % schema_editor.quote_name(self.table_name)
+                )
+
+
+@deconstructible
 class ForwardMaterializedViewMigration(ForwardViewMigrationBase):
     DROP_COMMAND_TEMPLATE = "DROP MATERIALIZED VIEW IF EXISTS %s;"
     CREATE_COMMAND_TEMPLATE = "CREATE MATERIALIZED VIEW %s as %s;"
